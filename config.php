@@ -2,10 +2,9 @@
 
 //configuration file
 return [
-    'db' => [
-        'base' => 'vi_ibvd',
-        'login' => 'vi_ibvd',
-        'password' => 'vi_ibvd',
-    ]
+    'user' => 'vi_ibvd',
+    'pass' => 'vi_ibvd',
+    'db' => 'vi_ibvd',
+    'charset' => 'utf8'
 ];
 
