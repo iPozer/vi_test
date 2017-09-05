@@ -17,6 +17,72 @@ class Schedule {
         $this->db = new SafeMySQL($opts);
     }
 
+    public function record_delivery() {
+        $region = null;
+        $courier = null;
+        $send_date = null;
+        if (!empty($_GET['region'])) {
+            $region = (int) $_GET['region'];
+        } else {
+            $this->error('Регион не указан',200);
+        }
+
+        if (!empty($_GET['courier'])) {
+            $courier = (int) $_GET['courier'];
+        } else {
+            $this->error('Курьер не указан',200);
+        }
+
+        if (!empty($_GET['send_date'])) {
+            $send_date = $_GET['send_date'];
+        } else {
+            $this->error('Дата отправки не указана',200);
+        }
+
+        //check recording
+        $sql = "SELECT count(*) FROM shipment 
+                WHERE region=?i AND courier=?i AND date_start<=?s AND date_end>=?s";
+        $count_record = (int) $this->db->getOne($sql, $region, $courier, $send_date, $send_date);
+        if ($count_record > 0) {
+            $this->error('В данный промежуток времени курьер занят.',200);
+        }
+        $sql = "SELECT (days_send+days_back) as day FROM region WHERE id=?i";
+        $days_in = (int) $this->db->getOne($sql, $region);
+        $t_date = date_create_from_format('Y-m-d', $send_date);
+        if (!$t_date) {
+            $this->error('Дата указана неправильно',200);
+        }
+        $t_date->add(new DateInterval('P' . $days_in . 'D'));
+
+        $next_date = $t_date->format('Y-m-d');
+        $sql = "SELECT count(*) FROM shipment 
+                WHERE region=?i AND courier=?i AND date_start<=?s AND date_end>=?s";
+        $count_record = (int) $this->db->getOne($sql, $region, $courier, $next_date, $next_date);
+        if ($count_record > 0) {
+            $this->error('В данный промежуток времени курьер занят.',200);
+        }
+        //add information
+        $data = [
+            'courier' => $courier,
+            'region' => $region,
+            'date_start' => $send_date,
+            'date_end' => $next_date,
+        ];
+        $sql = "INSERT INTO shipment SET ?u";
+        $this->db->query($sql, $data);
+        echo 'Поездка добавлена';
+    }
+
+    function get_regions() {
+        $region = $this->db->getAll("SELECT id,name,days_send FROM region");
+        return $region;
+    }
+
+    function get_couriers() {
+        $courier = $this->db->getAll("SELECT id,name FROM courier WHERE end_work is NULL");
+        return $courier;
+    }
+
     function get_schedule() {
         $start = date('Y-m-d');
         $end = date('Y-m-d');
@@ -49,15 +115,14 @@ class Schedule {
                     'date_end',
                     'delivered'
                 ];
-                foreach ($list_field as $lf)
-                {
-                    $data[$key_data][$lf]=date_create_from_format('Y-m-d', $_data[$lf])->format('d.m.Y');
+                foreach ($list_field as $lf) {
+                    $data[$key_data][$lf] = date_create_from_format('Y-m-d', $_data[$lf])->format('d.m.Y');
                 }
             }
         }
         $this->ajax_send($data);
     }
-    
+
     public function ajax_send($array) {
         header('Content-Type: application/json');
         echo json_encode($array);
@@ -147,8 +212,8 @@ class Schedule {
         echo 'Добавлено поездок в расписание: ' . $count_add_list;
     }
 
-    public function error($text) {
-        http_response_code(500);
+    public function error($text,$code=500) {
+        http_response_code($code);
         echo $text;
         die();
     }

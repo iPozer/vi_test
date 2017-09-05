@@ -5,5 +5,18 @@ ini_set('display_startup_errors', 1);
 
 include_once('Schedule.php');
 $schedule = new Schedule();
-$schedule->get_schedule();
+if (!empty($_GET['action']))
+{
+    switch($_GET['action'])
+    {
+        case 'schedule':
+            $schedule->get_schedule();
+            break;
+        case 'record':
+            $schedule->record_delivery();
+            break;
+    }
+}
+
+
 
